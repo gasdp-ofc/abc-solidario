@@ -1,4 +1,4 @@
-"use client";
+;"use client";
 
 import React, { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -14,7 +14,6 @@ import {
   UserRoundCheck,
   Home,
   RefreshCw,
-  PlusCircle,
 } from "lucide-react";
 import {
   BarChart,
@@ -32,64 +31,14 @@ import {
 
 type Familia = {
   id: string | number;
-  responsavel?: string;
-  bairro?: string;
-  criancas?: number;
-  necessidade?: string;
-  prioridade?: string;
-  status?: string;
-  ultimoAtendimento?: string;
-  Responsável?: string;
-  Bairro?: string;
-  Crianças?: number;
-  Necessidade?: string;
-  Prioridade?: string;
-  Status?: string;
-  Criado_em?: string;
+  responsavel: string;
+  bairro: string;
+  criancas: number;
+  necessidade: string;
+  prioridade: string;
+  status: string;
+  ultimoAtendimento: string;
 };
-
-const familiasBase: Familia[] = [
-  {
-    id: "FAM-001",
-    responsavel: "Maria Aparecida",
-    bairro: "Diadema",
-    criancas: 3,
-    necessidade: "Cesta básica e kit de higiene",
-    prioridade: "Alta",
-    status: "Ativa",
-    ultimoAtendimento: "09/05/2026",
-  },
-  {
-    id: "FAM-002",
-    responsavel: "João Santos",
-    bairro: "Santo André",
-    criancas: 2,
-    necessidade: "Kit de higiene",
-    prioridade: "Média",
-    status: "Ativa",
-    ultimoAtendimento: "08/05/2026",
-  },
-  {
-    id: "FAM-003",
-    responsavel: "Ana Paula",
-    bairro: "São Bernardo do Campo",
-    criancas: 4,
-    necessidade: "Alimentos, leite e fraldas",
-    prioridade: "Alta",
-    status: "Em acompanhamento",
-    ultimoAtendimento: "07/05/2026",
-  },
-  {
-    id: "FAM-004",
-    responsavel: "Cláudia Ferreira",
-    bairro: "São Caetano do Sul",
-    criancas: 1,
-    necessidade: "Roupas infantis",
-    prioridade: "Baixa",
-    status: "Ativa",
-    ultimoAtendimento: "06/05/2026",
-  },
-];
 
 const campanhasBase = [
   { nome: "Cestas básicas", arrecadado: 400, meta: 500 },
@@ -111,41 +60,67 @@ function badgeClass(valor: string) {
   return "badge success";
 }
 
+function formatarData(valor: string) {
+  if (!valor) return "-";
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return valor;
+  return data.toLocaleDateString("pt-BR");
+}
+
+function normalizarFamilia(item: any): Familia {
+  return {
+    id: item.id,
+    responsavel: item["Responsável"] ?? item.responsavel ?? "-",
+    bairro: item["Bairro"] ?? item.bairro ?? "-",
+    criancas: Number(item["Crianças"] ?? item.criancas ?? 0),
+    necessidade: item["Necessidade"] ?? item.necessidade ?? "-",
+    prioridade: item["Prioridade"] ?? item.prioridade ?? "-",
+    status: item["Status"] ?? item.status ?? "-",
+    ultimoAtendimento: formatarData(item["Criado_em"] ?? item.criado_em ?? item.ultimoAtendimento ?? ""),
+  };
+}
+
 export default function ABCSolidarioDashboard() {
   const [aba, setAba] = useState("dashboard");
   const [busca, setBusca] = useState("");
   const [familias, setFamilias] = useState<Familia[]>([]);
   const [campanhas, setCampanhas] = useState(campanhasBase);
   const [atualizadoEm, setAtualizadoEm] = useState("Aguardando atualização");
-  const [mensagem, setMensagem] = useState("Clique em Atualizar painel para carregar os cadastros do banco.");
+  const [mensagem, setMensagem] = useState("Clique em Atualizar painel para carregar os cadastros do Supabase.");
   const [carregando, setCarregando] = useState(false);
+
+  async function buscarTabela(nomeTabela: string) {
+    return await supabase.from(nomeTabela).select("*").order("id", { ascending: true });
+  }
 
   async function atualizarPainel() {
     setCarregando(true);
     setMensagem("Buscando cadastros no banco de dados...");
 
-    const { data, error } = await supabase
-      .from("Familias")
-      .select("*")
-      .order("id", { ascending: true });
+    let resposta = await buscarTabela("Familias");
 
-    if (error) {
-      console.error(error);
-      setMensagem("Não foi possível carregar os dados. Verifique o nome da tabela e a política RLS no Supabase.");
+    if (resposta.error) {
+      resposta = await buscarTabela("Famílias");
+    }
+
+    if (resposta.error) {
+      console.error(resposta.error);
+      setMensagem("Não foi possível carregar os dados. Verifique se a tabela se chama Familias/Famílias e se a política RLS está liberada.");
       setCarregando(false);
       return;
     }
 
-    const dados = data || [];
+    const dadosNormalizados = (resposta.data || []).map(normalizarFamilia);
     const quantidadeAnterior = familias.length;
-    setFamilias(dados);
 
-    if (dados.length === 0) {
+    setFamilias(dadosNormalizados);
+
+    if (dadosNormalizados.length === 0) {
       setMensagem("Nenhum cadastro encontrado no banco de dados.");
-    } else if (dados.length === quantidadeAnterior) {
-      setMensagem("Nenhum novo cadastro registrado. Os dados já estão atualizados.");
-    } else if (dados.length > quantidadeAnterior) {
-      setMensagem(`${dados.length - quantidadeAnterior} novo(s) cadastro(s) carregado(s) do banco.`);
+    } else if (dadosNormalizados.length === quantidadeAnterior) {
+      setMensagem("Nenhum novo cadastro registrado. Painel atualizado com os dados atuais.");
+    } else if (dadosNormalizados.length > quantidadeAnterior) {
+      setMensagem(`${dadosNormalizados.length - quantidadeAnterior} novo(s) cadastro(s) carregado(s) do banco.`);
     } else {
       setMensagem("Painel atualizado com os dados atuais do banco.");
     }
@@ -158,13 +133,9 @@ export default function ABCSolidarioDashboard() {
     setCarregando(false);
   }
 
-  function valor(item: Familia, campoMinusculo: keyof Familia, campoMaiusculo: keyof Familia) {
-    return item[campoMinusculo] ?? item[campoMaiusculo] ?? "";
-  }
-
   const familiasFiltradas = useMemo(() => {
     return familias.filter((item) =>
-      `${item.id} ${valor(item, "responsavel", "Responsável")} ${valor(item, "bairro", "Bairro")} ${valor(item, "necessidade", "Necessidade")} ${valor(item, "status", "Status")}`
+      `${item.id} ${item.responsavel} ${item.bairro} ${item.necessidade} ${item.status}`
         .toLowerCase()
         .includes(busca.toLowerCase())
     );
@@ -172,20 +143,20 @@ export default function ABCSolidarioDashboard() {
 
   const metricas = useMemo(() => {
     const totalFamilias = familias.length;
-    const totalCriancas = familias.reduce((total, item) => total + Number(valor(item, "criancas", "Crianças") || 0), 0);
-    const pedidosCesta = familias.filter((item) => String(valor(item, "necessidade", "Necessidade")).toLowerCase().includes("cesta")).length;
-    const pedidosKit = familias.filter((item) => String(valor(item, "necessidade", "Necessidade")).toLowerCase().includes("kit")).length;
+    const totalCriancas = familias.reduce((total, item) => total + item.criancas, 0);
+    const pedidosCesta = familias.filter((item) => item.necessidade.toLowerCase().includes("cesta")).length;
+    const pedidosKit = familias.filter((item) => item.necessidade.toLowerCase().includes("kit")).length;
 
     return { totalFamilias, totalCriancas, pedidosCesta, pedidosKit };
   }, [familias]);
 
   const distribuicaoNecessidades = useMemo(() => {
     const alimentos = familias.filter((item) => {
-      const n = String(valor(item, "necessidade", "Necessidade")).toLowerCase();
+      const n = item.necessidade.toLowerCase();
       return n.includes("cesta") || n.includes("alimento") || n.includes("leite");
     }).length;
-    const higiene = familias.filter((item) => String(valor(item, "necessidade", "Necessidade")).toLowerCase().includes("higiene") || String(valor(item, "necessidade", "Necessidade")).toLowerCase().includes("kit")).length;
-    const roupas = familias.filter((item) => String(valor(item, "necessidade", "Necessidade")).toLowerCase().includes("roupa")).length;
+    const higiene = familias.filter((item) => item.necessidade.toLowerCase().includes("higiene") || item.necessidade.toLowerCase().includes("kit")).length;
+    const roupas = familias.filter((item) => item.necessidade.toLowerCase().includes("roupa")).length;
     const outros = Math.max(familias.length - alimentos - higiene - roupas, 0);
 
     return [
@@ -198,13 +169,13 @@ export default function ABCSolidarioDashboard() {
 
   const evolucao = useMemo(() => {
     return [
-      { mes: "Jan", atendimentos: 45 },
-      { mes: "Fev", atendimentos: 58 },
-      { mes: "Mar", atendimentos: 73 },
-      { mes: "Abr", atendimentos: 91 },
-      { mes: "Mai", atendimentos: 108 + familias.length },
+      { mes: "Jan", atendimentos: Math.max(0, Math.round(metricas.totalFamilias * 0.25)) },
+      { mes: "Fev", atendimentos: Math.max(0, Math.round(metricas.totalFamilias * 0.45)) },
+      { mes: "Mar", atendimentos: Math.max(0, Math.round(metricas.totalFamilias * 0.65)) },
+      { mes: "Abr", atendimentos: Math.max(0, Math.round(metricas.totalFamilias * 0.85)) },
+      { mes: "Mai", atendimentos: metricas.totalFamilias },
     ];
-  }, [familias.length]);
+  }, [metricas.totalFamilias]);
 
   return (
     <main className="page">
@@ -218,6 +189,7 @@ export default function ABCSolidarioDashboard() {
         h2 { margin: 0 0 10px; display: flex; align-items: center; gap: 8px; color: #881337; }
         p { margin: 6px 0 0; color: #6b7280; }
         .btn { background: #be123c; color: white; border: 0; border-radius: 14px; padding: 14px 20px; cursor: pointer; font-weight: 700; box-shadow: 0 8px 18px rgba(190,18,60,.22); display:flex; align-items:center; gap:8px; }
+        .btn:disabled { opacity: .7; cursor: not-allowed; }
         .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
         .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
         .card { background: rgba(255,255,255,.92); border: 1px solid rgba(255,255,255,.8); border-radius: 22px; padding: 20px; box-shadow: 0 10px 28px rgba(15,23,42,.08); }
@@ -257,7 +229,9 @@ export default function ABCSolidarioDashboard() {
               <p>Plataforma de gestão social para controle de famílias, campanhas, doações e voluntários no ABC Paulista.</p>
             </div>
           </div>
-          <button className="btn" onClick={atualizarPainel} disabled={carregando}><RefreshCw size={18} /> {carregando ? "Atualizando..." : "Atualizar painel"}</button>
+          <button className="btn" onClick={atualizarPainel} disabled={carregando}>
+            <RefreshCw size={18} /> {carregando ? "Atualizando..." : "Atualizar painel"}
+          </button>
         </div>
 
         <div className="info">{mensagem} | Última atualização: {atualizadoEm}</div>
@@ -266,7 +240,7 @@ export default function ABCSolidarioDashboard() {
           <div className="highlight">
             <h2><HeartHandshake size={26} /> Nossa missão é a solidariedade</h2>
             <p>
-              Protótipo funcional criado para demonstrar como uma ONG pode centralizar informações sociais, acompanhar atendimentos e visualizar indicadores de impacto.
+              Plataforma conectada ao banco de dados para consultar famílias cadastradas, acompanhar atendimentos e visualizar indicadores de impacto.
             </p>
           </div>
           <div className="card">
@@ -306,14 +280,16 @@ export default function ABCSolidarioDashboard() {
             </div>
             <div className="card">
               <h2><Home size={24} /> Distribuição das necessidades</h2>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={distribuicaoNecessidades} dataKey="value" nameKey="name" outerRadius={100} label>
-                    <Cell /><Cell /><Cell /><Cell />
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {distribuicaoNecessidades.length === 0 ? <p>Nenhum dado encontrado.</p> : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie data={distribuicaoNecessidades} dataKey="value" nameKey="name" outerRadius={100} label>
+                      <Cell /><Cell /><Cell /><Cell />
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         )}
@@ -326,13 +302,13 @@ export default function ABCSolidarioDashboard() {
               <tbody>{familiasFiltradas.map((item) => (
                 <tr key={item.id}>
                   <td><b>{item.id}</b></td>
-                  <td>{String(valor(item, "responsavel", "Responsável"))}</td>
-                  <td>{String(valor(item, "bairro", "Bairro"))}</td>
-                  <td>{String(valor(item, "criancas", "Crianças"))}</td>
-                  <td>{String(valor(item, "necessidade", "Necessidade"))}</td>
-                  <td><span className={badgeClass(String(valor(item, "prioridade", "Prioridade")))}>{String(valor(item, "prioridade", "Prioridade"))}</span></td>
-                  <td><span className={badgeClass(String(valor(item, "status", "Status")))}>{String(valor(item, "status", "Status"))}</span></td>
-                  <td>{String(valor(item, "ultimoAtendimento", "Criado_em"))}</td>
+                  <td>{item.responsavel}</td>
+                  <td>{item.bairro}</td>
+                  <td>{item.criancas}</td>
+                  <td>{item.necessidade}</td>
+                  <td><span className={badgeClass(item.prioridade)}>{item.prioridade}</span></td>
+                  <td><span className={badgeClass(item.status)}>{item.status}</span></td>
+                  <td>{item.ultimoAtendimento}</td>
                 </tr>
               ))}</tbody>
             </table>
