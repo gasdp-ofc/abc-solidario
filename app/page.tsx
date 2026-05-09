@@ -1,58 +1,33 @@
-"use client";
+;"use client";
 
 import { useEffect, useState } from "react";
 
-interface Familia {
-  id: number;
-  Responsável: string;
-  Bairro: string;
-  Crianças: number;
-  Necessidade: string;
-  Prioridade: string;
-  Status: string;
-}
+const SUPABASE_URL = "https://psitfprlywjoqcqyelmt.supabase.co";
+const SUPABASE_KEY = "sb_publishable_FcZGvs3HP5NZQRuKoFN2DA_QjISgGCy";
 
 export default function Home() {
-  const [familias, setFamilias] = useState<Familia[]>([]);
+  const [familias, setFamilias] = useState<any[]>([]);
   const [erro, setErro] = useState("");
-  const [loading, setLoading] = useState(false);
 
   async function carregarFamilias() {
-    try {
-      setLoading(true);
+    setErro("");
 
-      const res = await fetch(
-        "https://psitfprlywjoqcqyelmt.supabase.co/rest/v1/Familias?select=*",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-            Authorization: `Bearer ${
-              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-            }`,
-          },
-        }
-      );
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/Familias?select=*`, {
+      method: "GET",
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
+    });
 
-      if (!res.ok) {
-        const erroTexto = await res.text();
+    const texto = await res.text();
 
-        console.error("ERRO SUPABASE:", erroTexto);
-
-        throw new Error("Falha ao buscar");
-      }
-
-      const data = await res.json();
-
-      setFamilias(data || []);
-      setErro("");
-    } catch (err: any) {
-      console.error(err);
-      setErro(err.message);
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      setErro(texto);
+      return;
     }
+
+    setFamilias(JSON.parse(texto));
   }
 
   useEffect(() => {
@@ -63,28 +38,15 @@ export default function Home() {
     <main style={{ padding: 20 }}>
       <h1>ABC Solidário</h1>
 
-      <button onClick={carregarFamilias}>
-        {loading ? "Carregando..." : "Atualizar painel"}
-      </button>
+      <button onClick={carregarFamilias}>Atualizar painel</button>
 
       {erro && (
-        <div
-          style={{
-            marginTop: 20,
-            padding: 15,
-            background: "#ffe5e5",
-            color: "#b00020",
-          }}
-        >
+        <pre style={{ background: "#ffe5e5", color: "red", padding: 15 }}>
           {erro}
-        </div>
+        </pre>
       )}
 
-      <table
-        border={1}
-        cellPadding={10}
-        style={{ marginTop: 20, width: "100%" }}
-      >
+      <table border={1} cellPadding={10} style={{ marginTop: 20, width: "100%" }}>
         <thead>
           <tr>
             <th>ID</th>
@@ -98,15 +60,15 @@ export default function Home() {
         </thead>
 
         <tbody>
-          {familias.map((familia) => (
-            <tr key={familia.id}>
-              <td>{familia.id}</td>
-              <td>{familia.Responsável}</td>
-              <td>{familia.Bairro}</td>
-              <td>{familia.Crianças}</td>
-              <td>{familia.Necessidade}</td>
-              <td>{familia.Prioridade}</td>
-              <td>{familia.Status}</td>
+          {familias.map((f) => (
+            <tr key={f.id}>
+              <td>{f.id}</td>
+              <td>{f["Responsável"]}</td>
+              <td>{f["Bairro"]}</td>
+              <td>{f["Crianças"]}</td>
+              <td>{f["Necessidade"]}</td>
+              <td>{f["Prioridade"]}</td>
+              <td>{f["Status"]}</td>
             </tr>
           ))}
         </tbody>
