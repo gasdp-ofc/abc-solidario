@@ -1,43 +1,48 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 
 interface Familia {
   id: number;
-  responsavel: string;
-  bairro: string;
-  criancas: number;
-  necessidade: string;
-  prioridade: string;
-  status: string;
-  ultimo_atendimento: string;
+  Responsável: string;
+  Bairro: string;
+  Crianças: number;
+  Necessidade: string;
+  Prioridade: string;
+  Status: string;
 }
 
-export default function Page() {
+export default function Home() {
   const [familias, setFamilias] = useState<Familia[]>([]);
   const [erro, setErro] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   async function carregarFamilias() {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("Familias")
-        .select("*");
+      const res = await fetch(
+        "https://psitfprlywjoqcqyelmt.supabase.co/rest/v1/Familias?select=*",
+        {
+          headers: {
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+          },
+        }
+      );
 
-      if (error) {
-        console.error(error);
-        setErro(error.message);
-        return;
+      if (!res.ok) {
+        const texto = await res.text();
+        throw new Error(texto);
       }
+
+      const data = await res.json();
 
       setFamilias(data || []);
       setErro("");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setErro("Erro ao conectar com Supabase");
+      setErro(err.message);
     } finally {
       setLoading(false);
     }
@@ -48,73 +53,57 @@ export default function Page() {
   }, []);
 
   return (
-    <main className="p-8">
-      <h1 className="text-3xl font-bold mb-6">
-        ABC Solidário
-      </h1>
+    <main style={{ padding: 20 }}>
+      <h1>ABC Solidário</h1>
 
-      <button
-        onClick={carregarFamilias}
-        className="bg-red-700 text-white px-4 py-2 rounded mb-6"
-      >
-        Atualizar painel
+      <button onClick={carregarFamilias}>
+        {loading ? "Carregando..." : "Atualizar painel"}
       </button>
 
       {erro && (
-        <div className="bg-red-100 text-red-700 p-4 rounded mb-4">
+        <div
+          style={{
+            marginTop: 20,
+            padding: 15,
+            background: "#ffe5e5",
+            color: "#b00020",
+          }}
+        >
           {erro}
         </div>
       )}
 
-      {loading ? (
-        <p>Carregando...</p>
-      ) : (
-        <table className="w-full border">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-2 border">ID</th>
-              <th className="p-2 border">Responsável</th>
-              <th className="p-2 border">Bairro</th>
-              <th className="p-2 border">Crianças</th>
-              <th className="p-2 border">Necessidade</th>
-              <th className="p-2 border">Prioridade</th>
-              <th className="p-2 border">Status</th>
-              <th className="p-2 border">
-                Último atendimento
-              </th>
-            </tr>
-          </thead>
+      <table
+        border={1}
+        cellPadding={10}
+        style={{ marginTop: 20, width: "100%" }}
+      >
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Responsável</th>
+            <th>Bairro</th>
+            <th>Crianças</th>
+            <th>Necessidade</th>
+            <th>Prioridade</th>
+            <th>Status</th>
+          </tr>
+        </thead>
 
-          <tbody>
-            {familias.map((familia) => (
-              <tr key={familia.id}>
-                <td className="p-2 border">{familia.id}</td>
-                <td className="p-2 border">
-                  {familia.responsavel}
-                </td>
-                <td className="p-2 border">
-                  {familia.bairro}
-                </td>
-                <td className="p-2 border">
-                  {familia.criancas}
-                </td>
-                <td className="p-2 border">
-                  {familia.necessidade}
-                </td>
-                <td className="p-2 border">
-                  {familia.prioridade}
-                </td>
-                <td className="p-2 border">
-                  {familia.status}
-                </td>
-                <td className="p-2 border">
-                  {familia.ultimo_atendimento}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+        <tbody>
+          {familias.map((familia) => (
+            <tr key={familia.id}>
+              <td>{familia.id}</td>
+              <td>{familia.Responsável}</td>
+              <td>{familia.Bairro}</td>
+              <td>{familia.Crianças}</td>
+              <td>{familia.Necessidade}</td>
+              <td>{familia.Prioridade}</td>
+              <td>{familia.Status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </main>
   );
 }
