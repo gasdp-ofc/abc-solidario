@@ -1,6 +1,7 @@
-"use client";
+;"use client";
 
 import React, { useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import {
   HeartHandshake,
   Users,
@@ -30,14 +31,21 @@ import {
 } from "recharts";
 
 type Familia = {
-  id: string;
-  responsavel: string;
-  bairro: string;
-  criancas: number;
-  necessidade: string;
-  prioridade: string;
-  status: string;
-  ultimoAtendimento: string;
+  id: string | number;
+  responsavel?: string;
+  bairro?: string;
+  criancas?: number;
+  necessidade?: string;
+  prioridade?: string;
+  status?: string;
+  ultimoAtendimento?: string;
+  Responsável?: string;
+  Bairro?: string;
+  Crianças?: number;
+  Necessidade?: string;
+  Prioridade?: string;
+  Status?: string;
+  Criado_em?: string;
 };
 
 const familiasBase: Familia[] = [
@@ -106,42 +114,57 @@ function badgeClass(valor: string) {
 export default function ABCSolidarioDashboard() {
   const [aba, setAba] = useState("dashboard");
   const [busca, setBusca] = useState("");
-  const [familias, setFamilias] = useState<Familia[]>(familiasBase);
+  const [familias, setFamilias] = useState<Familia[]>([]);
   const [campanhas, setCampanhas] = useState(campanhasBase);
-  const [atualizadoEm, setAtualizadoEm] = useState("09/05/2026 09:00");
+  const [atualizadoEm, setAtualizadoEm] = useState("Aguardando atualização");
+  const [mensagem, setMensagem] = useState("Clique em Atualizar painel para carregar os cadastros do banco.");
+  const [carregando, setCarregando] = useState(false);
 
-  function atualizarPainel() {
-    const novaFamilia: Familia = {
-      id: `FAM-00${familias.length + 1}`,
-      responsavel: "Nova família cadastrada",
-      bairro: "Diadema",
-      criancas: 2,
-      necessidade: "Cesta básica",
-      prioridade: "Alta",
-      status: "Em acompanhamento",
-      ultimoAtendimento: "09/05/2026",
-    };
+  async function atualizarPainel() {
+    setCarregando(true);
+    setMensagem("Buscando cadastros no banco de dados...");
 
-    setFamilias((lista) => [...lista, novaFamilia]);
-    setCampanhas((lista) =>
-      lista.map((item) =>
-        item.nome === "Cestas básicas"
-          ? { ...item, arrecadado: item.arrecadado + 1 }
-          : item.nome === "Famílias cadastradas"
-          ? { ...item, arrecadado: item.arrecadado + 1 }
-          : item
-      )
-    );
+    const { data, error } = await supabase
+      .from("Familias")
+      .select("*")
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      setMensagem("Não foi possível carregar os dados. Verifique o nome da tabela e a política RLS no Supabase.");
+      setCarregando(false);
+      return;
+    }
+
+    const dados = data || [];
+    const quantidadeAnterior = familias.length;
+    setFamilias(dados);
+
+    if (dados.length === 0) {
+      setMensagem("Nenhum cadastro encontrado no banco de dados.");
+    } else if (dados.length === quantidadeAnterior) {
+      setMensagem("Nenhum novo cadastro registrado. Os dados já estão atualizados.");
+    } else if (dados.length > quantidadeAnterior) {
+      setMensagem(`${dados.length - quantidadeAnterior} novo(s) cadastro(s) carregado(s) do banco.`);
+    } else {
+      setMensagem("Painel atualizado com os dados atuais do banco.");
+    }
 
     const agora = new Date();
     setAtualizadoEm(
       agora.toLocaleDateString("pt-BR") + " " + agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
     );
+
+    setCarregando(false);
+  }
+
+  function valor(item: Familia, campoMinusculo: keyof Familia, campoMaiusculo: keyof Familia) {
+    return item[campoMinusculo] ?? item[campoMaiusculo] ?? "";
   }
 
   const familiasFiltradas = useMemo(() => {
     return familias.filter((item) =>
-      `${item.id} ${item.responsavel} ${item.bairro} ${item.necessidade} ${item.status}`
+      `${item.id} ${valor(item, "responsavel", "Responsável")} ${valor(item, "bairro", "Bairro")} ${valor(item, "necessidade", "Necessidade")} ${valor(item, "status", "Status")}`
         .toLowerCase()
         .includes(busca.toLowerCase())
     );
@@ -149,20 +172,20 @@ export default function ABCSolidarioDashboard() {
 
   const metricas = useMemo(() => {
     const totalFamilias = familias.length;
-    const totalCriancas = familias.reduce((total, item) => total + item.criancas, 0);
-    const pedidosCesta = familias.filter((item) => item.necessidade.toLowerCase().includes("cesta")).length;
-    const pedidosKit = familias.filter((item) => item.necessidade.toLowerCase().includes("kit")).length;
+    const totalCriancas = familias.reduce((total, item) => total + Number(valor(item, "criancas", "Crianças") || 0), 0);
+    const pedidosCesta = familias.filter((item) => String(valor(item, "necessidade", "Necessidade")).toLowerCase().includes("cesta")).length;
+    const pedidosKit = familias.filter((item) => String(valor(item, "necessidade", "Necessidade")).toLowerCase().includes("kit")).length;
 
     return { totalFamilias, totalCriancas, pedidosCesta, pedidosKit };
   }, [familias]);
 
   const distribuicaoNecessidades = useMemo(() => {
     const alimentos = familias.filter((item) => {
-      const n = item.necessidade.toLowerCase();
+      const n = String(valor(item, "necessidade", "Necessidade")).toLowerCase();
       return n.includes("cesta") || n.includes("alimento") || n.includes("leite");
     }).length;
-    const higiene = familias.filter((item) => item.necessidade.toLowerCase().includes("higiene") || item.necessidade.toLowerCase().includes("kit")).length;
-    const roupas = familias.filter((item) => item.necessidade.toLowerCase().includes("roupa")).length;
+    const higiene = familias.filter((item) => String(valor(item, "necessidade", "Necessidade")).toLowerCase().includes("higiene") || String(valor(item, "necessidade", "Necessidade")).toLowerCase().includes("kit")).length;
+    const roupas = familias.filter((item) => String(valor(item, "necessidade", "Necessidade")).toLowerCase().includes("roupa")).length;
     const outros = Math.max(familias.length - alimentos - higiene - roupas, 0);
 
     return [
@@ -234,10 +257,10 @@ export default function ABCSolidarioDashboard() {
               <p>Plataforma de gestão social para controle de famílias, campanhas, doações e voluntários no ABC Paulista.</p>
             </div>
           </div>
-          <button className="btn" onClick={atualizarPainel}><RefreshCw size={18} /> Atualizar painel</button>
+          <button className="btn" onClick={atualizarPainel} disabled={carregando}><RefreshCw size={18} /> {carregando ? "Atualizando..." : "Atualizar painel"}</button>
         </div>
 
-        <div className="info">Última atualização simulada: {atualizadoEm}</div>
+        <div className="info">{mensagem} | Última atualização: {atualizadoEm}</div>
 
         <div className="hero">
           <div className="highlight">
@@ -303,13 +326,13 @@ export default function ABCSolidarioDashboard() {
               <tbody>{familiasFiltradas.map((item) => (
                 <tr key={item.id}>
                   <td><b>{item.id}</b></td>
-                  <td>{item.responsavel}</td>
-                  <td>{item.bairro}</td>
-                  <td>{item.criancas}</td>
-                  <td>{item.necessidade}</td>
-                  <td><span className={badgeClass(item.prioridade)}>{item.prioridade}</span></td>
-                  <td><span className={badgeClass(item.status)}>{item.status}</span></td>
-                  <td>{item.ultimoAtendimento}</td>
+                  <td>{String(valor(item, "responsavel", "Responsável"))}</td>
+                  <td>{String(valor(item, "bairro", "Bairro"))}</td>
+                  <td>{String(valor(item, "criancas", "Crianças"))}</td>
+                  <td>{String(valor(item, "necessidade", "Necessidade"))}</td>
+                  <td><span className={badgeClass(String(valor(item, "prioridade", "Prioridade")))}>{String(valor(item, "prioridade", "Prioridade"))}</span></td>
+                  <td><span className={badgeClass(String(valor(item, "status", "Status")))}>{String(valor(item, "status", "Status"))}</span></td>
+                  <td>{String(valor(item, "ultimoAtendimento", "Criado_em"))}</td>
                 </tr>
               ))}</tbody>
             </table>
