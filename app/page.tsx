@@ -1,4 +1,4 @@
-"use client";
+;"use client";
 
 import React, { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -97,15 +97,11 @@ export default function ABCSolidarioDashboard() {
     setCarregando(true);
     setMensagem("Buscando cadastros no banco de dados...");
 
-    let resposta = await buscarTabela("Familias");
-
-    if (resposta.error) {
-      resposta = await buscarTabela("Famílias");
-    }
+    const resposta = await buscarTabela("Famílias");
 
     if (resposta.error) {
       console.error(resposta.error);
-      setMensagem("Não foi possível carregar os dados. Verifique se a tabela se chama Familias/Famílias e se a política RLS está liberada.");
+      setMensagem("Não foi possível carregar os dados. Verifique se a tabela se chama Famílias e se a política RLS está liberada.");
       setCarregando(false);
       return;
     }
