@@ -97,11 +97,15 @@ export default function ABCSolidarioDashboard() {
     setCarregando(true);
     setMensagem("Buscando cadastros no banco de dados...");
 
-    const resposta = await buscarTabela("Famílias");
+    let resposta = await buscarTabela("Familias");
+
+    if (resposta.error) {
+      resposta = await buscarTabela("Famílias");
+    }
 
     if (resposta.error) {
       console.error(resposta.error);
-      setMensagem("Não foi possível carregar os dados. Verifique se a tabela se chama Famílias e se a política RLS está liberada.");
+      setMensagem(`Não foi possível carregar os dados: ${resposta.error.message}. Verifique se a tabela se chama Familias/Famílias e se a política RLS está liberada.`);
       setCarregando(false);
       return;
     }
