@@ -24,16 +24,23 @@ export default function Home() {
       const res = await fetch(
         "https://psitfprlywjoqcqyelmt.supabase.co/rest/v1/Familias?select=*",
         {
+          method: "GET",
           headers: {
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+            "Content-Type": "application/json",
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+            Authorization: `Bearer ${
+              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+            }`,
           },
         }
       );
 
       if (!res.ok) {
-        const texto = await res.text();
-        throw new Error(texto);
+        const erroTexto = await res.text();
+
+        console.error("ERRO SUPABASE:", erroTexto);
+
+        throw new Error("Falha ao buscar");
       }
 
       const data = await res.json();
