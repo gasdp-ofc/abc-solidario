@@ -12,22 +12,35 @@ export default function Home() {
   async function carregarFamilias() {
     setErro("");
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/Familias?select=*`, {
-      method: "GET",
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-      },
-    });
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/Familias?select=*`,
+        {
+          method: "GET",
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-    const texto = await res.text();
+      const texto = await res.text();
 
-    if (!res.ok) {
-      setErro(texto);
-      return;
+      if (!res.ok) {
+        setErro(texto);
+        return;
+      }
+
+      const data = JSON.parse(texto);
+
+      console.log(data);
+
+      setFamilias(data);
+    } catch (err: any) {
+      console.error(err);
+      setErro(err.message);
     }
-
-    setFamilias(JSON.parse(texto));
   }
 
   useEffect(() => {
@@ -38,15 +51,31 @@ export default function Home() {
     <main style={{ padding: 20 }}>
       <h1>ABC Solidário</h1>
 
-      <button onClick={carregarFamilias}>Atualizar painel</button>
+      <button onClick={carregarFamilias}>
+        Atualizar painel
+      </button>
 
       {erro && (
-        <pre style={{ background: "#ffe5e5", color: "red", padding: 15 }}>
+        <div
+          style={{
+            background: "#ffe5e5",
+            color: "red",
+            padding: 15,
+            marginTop: 20,
+          }}
+        >
           {erro}
-        </pre>
+        </div>
       )}
 
-      <table border={1} cellPadding={10} style={{ marginTop: 20, width: "100%" }}>
+      <table
+        border={1}
+        cellPadding={10}
+        style={{
+          marginTop: 20,
+          width: "100%",
+        }}
+      >
         <thead>
           <tr>
             <th>ID</th>
@@ -63,16 +92,27 @@ export default function Home() {
           {familias.map((f) => (
             <tr key={f.id}>
               <td>{f.id}</td>
-              <td>{f["Responsável"]}</td>
-              <td>{f["Bairro"]}</td>
-              <td>{f["Crianças"]}</td>
-              <td>{f["Necessidade"]}</td>
-              <td>{f["Prioridade"]}</td>
-              <td>{f["Status"]}</td>
+              <td>{f.Responsável || f.responsavel}</td>
+              <td>{f.Bairro || f.bairro}</td>
+              <td>{f.Crianças || f.criancas}</td>
+              <td>{f.Necessidade || f.necessidade}</td>
+              <td>{f.Prioridade || f.prioridade}</td>
+              <td>{f.Status || f.status}</td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <pre
+        style={{
+          marginTop: 30,
+          background: "#f5f5f5",
+          padding: 15,
+          overflow: "auto",
+        }}
+      >
+        {JSON.stringify(familias, null, 2)}
+      </pre>
     </main>
   );
 }
